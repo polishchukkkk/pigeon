@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#6653d9">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Love u Oksi">
+  <meta name="apple-mobile-web-app-title" content="Птахів Oksi 💜">
   <meta name="description" content="Маленька гра для тебе — лічильник птахів для Oksi.">
-  <title>Love u Oksi — лічильник птахів</title>
+  <title>Лічильник птахів Oksi 💜</title>
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
   <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
@@ -313,7 +313,7 @@
 
     .estimate-dialog h2 { margin: 7px 4px 5px; font-size: 20px; }
     .estimate-status { margin: 0 4px 13px; color: var(--muted); font-size: 14px; line-height: 1.4; }
-    .estimate-preview { display: block; width: 100%; max-height: 43svh; border-radius: 14px; background: #f1eef8; object-fit: contain; }
+    .estimate-preview { display: block; width: auto; height: auto; max-width: 100%; max-height: 43svh; margin: 0 auto; border-radius: 14px; background: #f1eef8; object-fit: contain; }
     .estimate-preview.marking { touch-action: none; cursor: crosshair; }
     .estimate-controls { padding-top: 14px; }
     .estimate-explainer { margin: 0 3px 12px; color: var(--muted); font-size: 12px; line-height: 1.45; }
@@ -343,7 +343,7 @@
   <main id="welcomeScreen" class="screen welcome">
     <section class="welcome-card" aria-labelledby="welcomeTitle">
       <span class="heart" aria-hidden="true">💜</span>
-      <h1 id="welcomeTitle">love u oksi</h1>
+      <h1 id="welcomeTitle">love u, Oksi</h1>
       <p>Маленька гра для тебе.</p>
       <a id="enterButton" class="button button-primary" href="#appScreen">Привіт <span aria-hidden="true">→</span></a>
     </section>
@@ -354,13 +354,13 @@
       <header class="topline">
         <div class="brand-mark" aria-hidden="true">🕊️</div>
         <div>
-          <h1>Лічильник птахів</h1>
+          <h1>Лічильник птахів Oksi 💜</h1>
           <p>Маленькі зустрічі, які хочеться зберегти</p>
         </div>
       </header>
 
       <section class="counter-card" aria-labelledby="countLabel">
-        <p id="countLabel" class="count-label">Птахів пораховано</p>
+        <p id="countLabel" class="count-label">Птахів на тусовці :)</p>
         <div id="count" class="count" aria-live="polite">0</div>
 
         <div class="goal-row">
@@ -750,8 +750,8 @@
         const markerSize = Math.max(54, source.width * 0.055);
         const x = point.x * source.width;
         const y = point.y * source.height;
-        const left = Math.max(0, Math.min(source.width - markerSize, x - markerSize / 2));
-        const top = Math.max(0, Math.min(source.height - markerSize, y - markerSize / 2));
+        const left = x - markerSize / 2;
+        const top = y - markerSize / 2;
         const label = String(detections.length + index + 1);
         context.fillStyle = "rgba(21, 102, 220, .92)";
         context.strokeStyle = "#ffffff";
@@ -799,8 +799,15 @@
       if (!manualMarkMode || !estimateCanvas.width || (event.button !== undefined && event.button !== 0)) return;
       event.preventDefault();
       const rect = estimateCanvas.getBoundingClientRect();
-      const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-      const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+      if (!rect.width || !rect.height) return;
+      const scale = Math.min(rect.width / estimateCanvas.width, rect.height / estimateCanvas.height);
+      const displayedWidth = estimateCanvas.width * scale;
+      const displayedHeight = estimateCanvas.height * scale;
+      const imageLeft = rect.left + (rect.width - displayedWidth) / 2;
+      const imageTop = rect.top + (rect.height - displayedHeight) / 2;
+      const x = (event.clientX - imageLeft) / displayedWidth;
+      const y = (event.clientY - imageTop) / displayedHeight;
+      if (x < 0 || x > 1 || y < 0 || y > 1) return;
       if (estimatedQuantity >= 10000) {
         showToast("Досягнуто максимуму для одного підрахунку.");
         return;
