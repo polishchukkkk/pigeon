@@ -234,6 +234,20 @@
       gap: 9px;
     }
 
+    .training-entry { display: grid; gap: 8px; margin: 0 0 12px; }
+    .training-entry .button { width: 100%; min-height: 46px; font-size: 14px; }
+    .training-picker-dialog { overflow-y: auto; }
+    .training-picker-dialog h2, .training-dialog h2 { margin: 7px 4px 5px; font-size: 20px; }
+    .training-picker-dialog p, .training-help { margin: 0 4px 13px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .training-photo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+    .training-photo-tile { position: relative; overflow: hidden; aspect-ratio: 1; border: 0; border-radius: 14px; padding: 0; background: #eae6f3; }
+    .training-photo-tile img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .training-photo-label { position: absolute; right: 4px; bottom: 4px; left: 4px; overflow: hidden; border-radius: 7px; padding: 4px; background: rgba(25,22,37,.68); color: #fff; font-size: 10px; text-align: center; text-overflow: ellipsis; white-space: nowrap; }
+    .training-canvas { display: block; width: 100%; max-height: 52svh; margin: 0 auto; border-radius: 14px; background: #f1eef8; touch-action: none; }
+    .training-count { margin: 8px 4px 12px; color: var(--purple-dark); font-size: 14px; font-weight: 700; text-align: center; }
+    .training-actions { display: grid; grid-template-columns: 1fr 1.2fr; gap: 9px; margin-top: 12px; }
+    .training-actions .button { min-height: 48px; padding: 0 9px; font-size: 13px; }
+
     .photo-tile {
       position: relative;
       overflow: hidden;
@@ -385,6 +399,10 @@
           <h2 id="photosTitle">Фото птахів</h2>
           <span id="photoCount"></span>
         </div>
+        <div class="training-entry">
+          <button id="trainingPhotosButton" class="button button-secondary" type="button">✏️ Розмітити збережені фото</button>
+          <button id="exportTrainingButton" class="button button-photo" type="button" disabled>⬇️ Експортувати розмічені фото</button>
+        </div>
         <div id="photoGrid" class="photo-grid"></div>
       </section>
 
@@ -395,7 +413,27 @@
   <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   <dialog id="photoDialog" aria-label="Фото птаха">
     <img id="dialogImage" alt="Збережене фото птаха">
-    <div class="dialog-actions"><button id="closePhoto" class="button button-secondary" type="button">Закрити</button></div>
+    <div class="dialog-actions">
+      <button id="annotateViewedPhoto" class="button button-photo" type="button">✏️ Розмітити</button>
+      <button id="closePhoto" class="button button-secondary" type="button">Закрити</button>
+    </div>
+  </dialog>
+  <dialog id="trainingPickerDialog" class="training-picker-dialog" aria-labelledby="trainingPickerTitle">
+    <h2 id="trainingPickerTitle">Обери збережене фото</h2>
+    <p>Познач рамками птахів на фото. Усі птахи мають одну мітку — «птах».</p>
+    <div id="trainingPhotoGrid" class="training-photo-grid"></div>
+    <div class="dialog-actions"><button id="closeTrainingPicker" class="button button-secondary" type="button">Закрити</button></div>
+  </dialog>
+  <dialog id="trainingDialog" class="training-dialog" aria-labelledby="trainingTitle">
+    <h2 id="trainingTitle">Розмітка фото</h2>
+    <p class="training-help">Проведи пальцем від одного кута птаха до протилежного, щоб обвести його рамкою. Розмічай кожного видимого птаха.</p>
+    <canvas id="trainingCanvas" class="training-canvas" hidden></canvas>
+    <p id="trainingCount" class="training-count">Рамок: 0</p>
+    <div class="training-actions">
+      <button id="undoTrainingBox" class="button button-secondary" type="button" disabled>↶ Скасувати рамку</button>
+      <button id="saveTrainingBoxes" class="button button-count" type="button">Зберегти позначки</button>
+    </div>
+    <div class="dialog-actions"><button id="cancelTraining" class="button button-secondary" type="button">Назад</button></div>
   </dialog>
   <dialog id="estimateDialog" class="estimate-dialog" aria-labelledby="estimateTitle">
     <h2 id="estimateTitle">Орієнтовний підрахунок</h2>
@@ -426,6 +464,7 @@
     const GOALS = [100, 300, 1000, 10000];
     const TFJS_URL = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js";
     const COCO_SSD_URL = "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js";
+    const JSZIP_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
     let database = null;
     let observations = [];
     let objectUrls = [];
@@ -437,6 +476,12 @@
     let estimateSource = null;
     let manualMarkMode = false;
     let estimatedQuantity = 0;
+    let viewedObservation = null;
+    let trainingObservation = null;
+    let trainingSource = null;
+    let trainingBoxes = [];
+    let activeTrainingBox = null;
+    let trainingPickerObjectUrls = [];
 
     const welcomeScreen = document.getElementById("welcomeScreen");
     const appScreen = document.getElementById("appScreen");
@@ -453,6 +498,14 @@
     const toast = document.getElementById("toast");
     const photoDialog = document.getElementById("photoDialog");
     const dialogImage = document.getElementById("dialogImage");
+    const trainingPhotosButton = document.getElementById("trainingPhotosButton");
+    const exportTrainingButton = document.getElementById("exportTrainingButton");
+    const trainingPickerDialog = document.getElementById("trainingPickerDialog");
+    const trainingPhotoGrid = document.getElementById("trainingPhotoGrid");
+    const trainingDialog = document.getElementById("trainingDialog");
+    const trainingCanvas = document.getElementById("trainingCanvas");
+    const trainingCount = document.getElementById("trainingCount");
+    const undoTrainingBoxButton = document.getElementById("undoTrainingBox");
     const estimateDialog = document.getElementById("estimateDialog");
     const estimateStatus = document.getElementById("estimateStatus");
     const estimateCanvas = document.getElementById("estimateCanvas");
@@ -503,6 +556,16 @@
       });
     }
 
+    function updateObservation(observation) {
+      return new Promise((resolve, reject) => {
+        const transaction = database.transaction(STORE_NAME, "readwrite");
+        transaction.objectStore(STORE_NAME).put(observation);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error || new Error("Не вдалося зберегти позначки."));
+        transaction.onabort = () => reject(transaction.error || new Error("Збереження позначок перервано."));
+      });
+    }
+
     function deleteObservation(id) {
       return new Promise((resolve, reject) => {
         const transaction = database.transaction(STORE_NAME, "readwrite");
@@ -546,6 +609,11 @@
       const photoObservations = observations.filter(item => item.photo).slice(-6).reverse();
       photoSection.hidden = photoObservations.length === 0;
       photoCount.textContent = photoObservations.length ? `${observations.filter(item => item.photo).length} збережено` : "";
+      const annotatedPhotoCount = observations.filter(item => item.photo && Array.isArray(item.trainingBoxes) && item.trainingBoxes.length > 0).length;
+      exportTrainingButton.disabled = annotatedPhotoCount === 0;
+      exportTrainingButton.textContent = annotatedPhotoCount
+        ? `⬇️ Експортувати розмічені фото (${formatNumber(annotatedPhotoCount)})`
+        : "⬇️ Експортувати розмічені фото";
       photoGrid.replaceChildren();
 
       for (const item of photoObservations) {
@@ -563,8 +631,36 @@
         const quantity = Number.isFinite(item.quantity) ? item.quantity : 1;
         time.textContent = `${formatTime(item.createdAt)} · ${formatNumber(quantity)}`;
         tile.append(image, time);
-        tile.addEventListener("click", () => openPhoto(item.photo));
+        tile.addEventListener("click", () => openPhoto(item));
         photoGrid.append(tile);
+      }
+    }
+
+    function renderTrainingPhotoPicker() {
+      trainingPickerObjectUrls.forEach(url => URL.revokeObjectURL(url));
+      trainingPickerObjectUrls = [];
+      trainingPhotoGrid.replaceChildren();
+      const savedPhotos = observations.filter(item => item.photo).slice().reverse();
+      for (const item of savedPhotos) {
+        const tile = document.createElement("button");
+        tile.type = "button";
+        tile.className = "training-photo-tile";
+        tile.setAttribute("aria-label", `Розмітити фото від ${formatTime(item.createdAt)}`);
+        const image = document.createElement("img");
+        const url = URL.createObjectURL(item.photo);
+        trainingPickerObjectUrls.push(url);
+        image.src = url;
+        image.alt = "Збережене фото птахів";
+        const label = document.createElement("span");
+        label.className = "training-photo-label";
+        const count = Array.isArray(item.trainingBoxes) ? item.trainingBoxes.length : 0;
+        label.textContent = `${formatTime(item.createdAt)} · ${count ? `${count} рамок` : "не розмічено"}`;
+        tile.append(image, label);
+        tile.addEventListener("click", () => {
+          trainingPickerDialog.close();
+          setTimeout(() => openTrainingEditor(item), 0);
+        });
+        trainingPhotoGrid.append(tile);
       }
     }
 
@@ -900,14 +996,215 @@
       }
     }
 
-    function openPhoto(blob) {
-      const url = URL.createObjectURL(blob);
+    function openPhoto(observation) {
+      viewedObservation = observation;
+      const url = URL.createObjectURL(observation.photo);
       dialogImage.src = url;
       photoDialog.showModal();
       photoDialog.addEventListener("close", () => {
         URL.revokeObjectURL(url);
         dialogImage.removeAttribute("src");
+        viewedObservation = null;
       }, { once: true });
+    }
+
+    function drawTrainingCanvas() {
+      if (!trainingSource) return;
+      trainingCanvas.width = trainingSource.width;
+      trainingCanvas.height = trainingSource.height;
+      const context = trainingCanvas.getContext("2d");
+      context.clearRect(0, 0, trainingCanvas.width, trainingCanvas.height);
+      context.drawImage(trainingSource, 0, 0);
+      context.lineWidth = Math.max(3, trainingCanvas.width / 320);
+      context.font = "bold " + Math.max(18, trainingCanvas.width / 34) + "px -apple-system, sans-serif";
+      context.textAlign = "start";
+      context.textBaseline = "alphabetic";
+      trainingBoxes.forEach((box, index) => {
+        const x = box.x * trainingCanvas.width;
+        const y = box.y * trainingCanvas.height;
+        const width = box.width * trainingCanvas.width;
+        const height = box.height * trainingCanvas.height;
+        context.strokeStyle = "#16a085";
+        context.fillStyle = "rgba(22, 160, 133, .14)";
+        context.fillRect(x, y, width, height);
+        context.strokeRect(x, y, width, height);
+        const label = String(index + 1);
+        const labelHeight = Math.max(23, trainingCanvas.width / 32);
+        const labelWidth = context.measureText(label).width + 12;
+        const labelY = Math.max(0, y - labelHeight);
+        context.fillStyle = "#13866f";
+        context.fillRect(x, labelY, labelWidth, labelHeight);
+        context.fillStyle = "#fff";
+        context.fillText(label, x + 6, labelY + labelHeight * .75);
+      });
+      if (activeTrainingBox) {
+        const left = Math.min(activeTrainingBox.startX, activeTrainingBox.currentX);
+        const top = Math.min(activeTrainingBox.startY, activeTrainingBox.currentY);
+        const width = Math.abs(activeTrainingBox.currentX - activeTrainingBox.startX);
+        const height = Math.abs(activeTrainingBox.currentY - activeTrainingBox.startY);
+        context.strokeStyle = "#6653d9";
+        context.setLineDash([Math.max(6, trainingCanvas.width / 120), Math.max(4, trainingCanvas.width / 200)]);
+        context.strokeRect(left * trainingCanvas.width, top * trainingCanvas.height, width * trainingCanvas.width, height * trainingCanvas.height);
+        context.setLineDash([]);
+      }
+      trainingCount.textContent = "Рамок: " + formatNumber(trainingBoxes.length);
+      undoTrainingBoxButton.disabled = trainingBoxes.length === 0;
+      trainingCanvas.hidden = false;
+    }
+
+    async function openTrainingEditor(observation) {
+      trainingObservation = observation;
+      trainingBoxes = Array.isArray(observation.trainingBoxes)
+        ? observation.trainingBoxes.map(box => ({ x: box.x, y: box.y, width: box.width, height: box.height }))
+        : [];
+      trainingSource = null;
+      activeTrainingBox = null;
+      trainingCanvas.hidden = true;
+      trainingDialog.showModal();
+      try {
+        const image = await imageFromBlob(observation.photo);
+        const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+        const source = document.createElement("canvas");
+        source.width = Math.max(1, Math.round(image.naturalWidth * scale));
+        source.height = Math.max(1, Math.round(image.naturalHeight * scale));
+        source.getContext("2d").drawImage(image, 0, 0, source.width, source.height);
+        trainingSource = source;
+        drawTrainingCanvas();
+      } catch (error) {
+        console.error(error);
+        trainingDialog.close();
+        showToast("Не вдалося відкрити це фото для розмітки.");
+      }
+    }
+
+    function trainingPointerPosition(event) {
+      const rect = trainingCanvas.getBoundingClientRect();
+      return {
+        x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+        y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+      };
+    }
+
+    function startTrainingBox(event) {
+      if (!trainingSource || (event.button !== undefined && event.button !== 0)) return;
+      event.preventDefault();
+      const point = trainingPointerPosition(event);
+      activeTrainingBox = { startX: point.x, startY: point.y, currentX: point.x, currentY: point.y };
+      trainingCanvas.setPointerCapture(event.pointerId);
+      drawTrainingCanvas();
+    }
+
+    function moveTrainingBox(event) {
+      if (!activeTrainingBox) return;
+      const point = trainingPointerPosition(event);
+      activeTrainingBox.currentX = point.x;
+      activeTrainingBox.currentY = point.y;
+      drawTrainingCanvas();
+    }
+
+    function finishTrainingBox(event) {
+      if (!activeTrainingBox) return;
+      const point = trainingPointerPosition(event);
+      activeTrainingBox.currentX = point.x;
+      activeTrainingBox.currentY = point.y;
+      const left = Math.min(activeTrainingBox.startX, activeTrainingBox.currentX);
+      const top = Math.min(activeTrainingBox.startY, activeTrainingBox.currentY);
+      const width = Math.abs(activeTrainingBox.currentX - activeTrainingBox.startX);
+      const height = Math.abs(activeTrainingBox.currentY - activeTrainingBox.startY);
+      if (width >= .012 && height >= .012) {
+        trainingBoxes.push({ x: left, y: top, width: width, height: height });
+      } else {
+        showToast("Проведи пальцем навколо птаха, щоб намалювати рамку.");
+      }
+      activeTrainingBox = null;
+      drawTrainingCanvas();
+    }
+
+    async function saveTrainingAnnotations() {
+      if (!trainingObservation || !database) return;
+      const savedBoxCount = trainingBoxes.length;
+      try {
+        await updateObservation({ ...trainingObservation, trainingBoxes: trainingBoxes.map(box => ({ ...box })) });
+        trainingDialog.close();
+        await refresh();
+        showToast("Збережено рамок: " + formatNumber(savedBoxCount) + ". Фото лишається на цьому iPhone.");
+      } catch (error) {
+        console.error(error);
+        showToast("Не вдалося зберегти рамки. Перевір вільне місце на iPhone.");
+      }
+    }
+
+    function photoFileExtension(blob) {
+      if (blob.type === "image/png") return "png";
+      if (blob.type === "image/webp") return "webp";
+      return "jpg";
+    }
+
+    async function exportTrainingDataset() {
+      const annotated = observations.filter(item => item.photo && Array.isArray(item.trainingBoxes) && item.trainingBoxes.length > 0);
+      if (!annotated.length) {
+        showToast("Спочатку розміть хоча б одне фото.");
+        return;
+      }
+      const originalText = exportTrainingButton.textContent;
+      exportTrainingButton.disabled = true;
+      exportTrainingButton.textContent = "Готую ZIP-архів…";
+      try {
+        await loadExternalScript(JSZIP_URL, "JSZip");
+        const zip = new JSZip();
+        const imagesFolder = zip.folder("images");
+        const coco = {
+          info: { description: "Розмічені фото міських птахів", version: "1.0", year: new Date().getFullYear() },
+          licenses: [], images: [], annotations: [],
+          categories: [{ id: 1, name: "bird", supercategory: "animal" }]
+        };
+        let annotationId = 1;
+        for (let index = 0; index < annotated.length; index += 1) {
+          const item = annotated[index];
+          const image = await imageFromBlob(item.photo);
+          const fileName = "bird-" + String(index + 1).padStart(4, "0") + "." + photoFileExtension(item.photo);
+          const imageId = index + 1;
+          imagesFolder.file(fileName, item.photo);
+          coco.images.push({ id: imageId, file_name: fileName, width: image.naturalWidth, height: image.naturalHeight, date_captured: new Date(item.createdAt).toISOString() });
+          for (const box of item.trainingBoxes) {
+            const x = Math.max(0, Math.min(1, box.x)) * image.naturalWidth;
+            const y = Math.max(0, Math.min(1, box.y)) * image.naturalHeight;
+            const width = Math.max(0, Math.min(1 - box.x, box.width)) * image.naturalWidth;
+            const height = Math.max(0, Math.min(1 - box.y, box.height)) * image.naturalHeight;
+            if (width <= 0 || height <= 0) continue;
+            coco.annotations.push({ id: annotationId++, image_id: imageId, category_id: 1, bbox: [x, y, width, height], area: width * height, iscrowd: 0 });
+          }
+        }
+        zip.file("annotations.json", JSON.stringify(coco, null, 2));
+        zip.file("README.txt", "Навчальний набір міських птахів. Один клас: bird (усі види птахів разом). Фото — у папці images/, рамки й координати — в annotations.json у форматі COCO.");
+        const archive = await zip.generateAsync({ type: "blob", compression: "STORE" });
+        const fileName = "oksi-birds-training-" + new Date().toISOString().slice(0, 10) + ".zip";
+        const archiveFile = new File([archive], fileName, { type: "application/zip" });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [archiveFile] })) {
+          try {
+            await navigator.share({ files: [archiveFile], title: "Розмічені фото птахів" });
+          } catch (error) {
+            if (error.name === "AbortError") return;
+            throw error;
+          }
+        } else {
+          const url = URL.createObjectURL(archive);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = fileName;
+          document.body.append(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 60000);
+        }
+        showToast("Архів готовий: " + formatNumber(annotated.length) + " фото, " + formatNumber(coco.annotations.length) + " рамок.");
+      } catch (error) {
+        console.error(error);
+        showToast("Не вдалося зібрати ZIP. Перевір інтернет і спробуй ще раз.");
+      } finally {
+        exportTrainingButton.disabled = false;
+        exportTrainingButton.textContent = originalText;
+      }
     }
 
     document.getElementById("enterButton").addEventListener("click", () => {
@@ -919,6 +1216,40 @@
     document.getElementById("countButton").addEventListener("click", () => addObservation(null, 1));
     document.getElementById("undoButton").addEventListener("click", undoLast);
     document.getElementById("closePhoto").addEventListener("click", () => photoDialog.close());
+    document.getElementById("annotateViewedPhoto").addEventListener("click", () => {
+      const observation = viewedObservation;
+      if (!observation) return;
+      photoDialog.close();
+      setTimeout(() => openTrainingEditor(observation), 0);
+    });
+    trainingPhotosButton.addEventListener("click", () => {
+      renderTrainingPhotoPicker();
+      trainingPickerDialog.showModal();
+    });
+    exportTrainingButton.addEventListener("click", exportTrainingDataset);
+    document.getElementById("closeTrainingPicker").addEventListener("click", () => trainingPickerDialog.close());
+    trainingPickerDialog.addEventListener("close", () => {
+      trainingPickerObjectUrls.forEach(url => URL.revokeObjectURL(url));
+      trainingPickerObjectUrls = [];
+    });
+    trainingCanvas.addEventListener("pointerdown", startTrainingBox);
+    trainingCanvas.addEventListener("pointermove", moveTrainingBox);
+    trainingCanvas.addEventListener("pointerup", finishTrainingBox);
+    trainingCanvas.addEventListener("pointercancel", finishTrainingBox);
+    undoTrainingBoxButton.addEventListener("click", () => {
+      if (!trainingBoxes.length) return;
+      trainingBoxes.pop();
+      drawTrainingCanvas();
+    });
+    document.getElementById("saveTrainingBoxes").addEventListener("click", saveTrainingAnnotations);
+    document.getElementById("cancelTraining").addEventListener("click", () => trainingDialog.close());
+    trainingDialog.addEventListener("close", () => {
+      trainingObservation = null;
+      trainingSource = null;
+      trainingBoxes = [];
+      activeTrainingBox = null;
+      trainingCanvas.hidden = true;
+    });
     toggleMarkingButton.addEventListener("click", () => {
       manualMarkMode = !manualMarkMode;
       updateMarkControls();
