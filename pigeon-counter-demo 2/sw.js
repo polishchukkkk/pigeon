@@ -1,4 +1,4 @@
-const CACHE_NAME = "love-u-oksi-shell-v6";
+const CACHE_NAME = "love-u-oksi-shell-v7";
 const APP_FILES = [
   "./",
   "./index.html",
