@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6653d9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Love u Oksi">
+  <meta name="description" content="Маленька гра для тебе — лічильник птахів для Oksi.">
+  <title>Love u Oksi — лічильник птахів</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="./icon-180.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #27243a;
+      --muted: #77738b;
+      --purple: #6653d9;
+      --purple-dark: #5140bf;
+      --pink: #ef6d91;
+      --paper: #fbf9ff;
+      --line: #e9e5f2;
+      --card: #ffffff;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      min-height: 100%;
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body { min-height: 100svh; }
+    button, label { font: inherit; }
+    button { cursor: pointer; }
+    [hidden] { display: none !important; }
+
+    .screen {
+      min-height: 100svh;
+      padding: calc(24px + var(--safe-top)) 22px calc(24px + var(--safe-bottom));
+    }
+
+    /* Keep welcome navigation working even in file previews that block JavaScript. */
+    #appScreen { display: none; }
+    #appScreen:target { display: block; }
+    body:has(#appScreen:target) #welcomeScreen { display: none; }
+
+    .welcome {
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 15% 20%, rgba(255,255,255,.28) 0 4px, transparent 5px),
+        radial-gradient(circle at 82% 27%, rgba(255,255,255,.2) 0 6px, transparent 7px),
+        radial-gradient(circle at 23% 76%, rgba(255,255,255,.18) 0 5px, transparent 6px),
+        linear-gradient(145deg, #7968e9 0%, #6552d7 54%, #5140bf 100%);
+      color: #fff;
+    }
+
+    .welcome-card {
+      width: min(100%, 390px);
+      padding: 38px 28px 34px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 32px;
+      background: rgba(255,255,255,.12);
+      box-shadow: 0 24px 70px rgba(28, 20, 99, .22);
+      backdrop-filter: blur(12px);
+    }
+
+    .heart {
+      display: block;
+      margin: 0 auto 18px;
+      font-size: 60px;
+      line-height: 1;
+      filter: drop-shadow(0 8px 12px rgba(75, 31, 106, .22));
+    }
+
+    .welcome h1 {
+      margin: 0;
+      font-size: clamp(34px, 9vw, 46px);
+      line-height: 1.08;
+      letter-spacing: -.04em;
+    }
+
+    .welcome p {
+      margin: 14px 0 26px;
+      color: rgba(255,255,255,.85);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+
+    .button {
+      display: inline-flex;
+      min-height: 54px;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 0;
+      border-radius: 17px;
+      padding: 0 20px;
+      font-size: 16px;
+      font-weight: 750;
+      text-decoration: none;
+      transition: transform .12s ease, filter .12s ease;
+      user-select: none;
+    }
+
+    .button:active { transform: scale(.98); }
+    .button-primary { background: #fff; color: var(--purple-dark); }
+    .welcome .button-primary { width: 100%; }
+
+    .app-shell {
+      width: min(100%, 520px);
+      margin: 0 auto;
+    }
+
+    .topline {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 5px 2px 20px;
+    }
+
+    .brand-mark {
+      display: grid;
+      width: 46px;
+      height: 46px;
+      flex: 0 0 46px;
+      place-items: center;
+      border-radius: 15px;
+      background: #ece8ff;
+      font-size: 25px;
+    }
+
+    .topline h1 { margin: 0; font-size: 20px; letter-spacing: -.025em; }
+    .topline p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+
+    .counter-card {
+      padding: 26px 22px 22px;
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: var(--card);
+      box-shadow: 0 14px 42px rgba(58, 44, 119, .08);
+      text-align: center;
+    }
+
+    .count-label {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 650;
+    }
+
+    .count {
+      margin: 5px 0 8px;
+      color: var(--purple-dark);
+      font-size: clamp(82px, 23vw, 112px);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -.065em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .goal-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 16px 1px 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .progress-track {
+      height: 9px;
+      overflow: hidden;
+      border-radius: 99px;
+      background: #eeeaf8;
+    }
+
+    .progress-fill {
+      width: 0;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #8b78f4, #ef79a1);
+      transition: width .25s ease;
+    }
+
+    .actions {
+      display: grid;
+      gap: 11px;
+      margin-top: 18px;
+    }
+
+    .actions .button { width: 100%; }
+    .button-count { background: var(--purple); color: #fff; box-shadow: 0 8px 18px rgba(102,83,217,.22); }
+    .button-photo { border: 1px solid #ded8f6; background: #f4f1ff; color: var(--purple-dark); }
+    .button-secondary { border: 1px solid var(--line); background: #fff; color: #514d63; }
+    .button:disabled { cursor: default; opacity: .45; }
+
+    .photo-input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; clip-path: inset(50%); }
+    .button-photo:focus-within, .photo-input:focus-visible + .button-photo { outline: 3px solid #bdb2ff; outline-offset: 3px; }
+
+    .helper {
+      margin: 15px 5px 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 26px 2px 12px;
+    }
+
+    .section-heading h2 { margin: 0; font-size: 17px; }
+    .section-heading span { color: var(--muted); font-size: 12px; }
+
+    .photo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .photo-tile {
+      position: relative;
+      overflow: hidden;
+      aspect-ratio: 1;
+      border: 0;
+      border-radius: 17px;
+      padding: 0;
+      background: #eae6f3;
+    }
+
+    .photo-tile img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-time {
+      position: absolute;
+      right: 5px;
+      bottom: 5px;
+      left: 5px;
+      overflow: hidden;
+      border-radius: 8px;
+      padding: 4px 5px;
+      background: rgba(25, 22, 37, .58);
+      color: white;
+      font-size: 10px;
+      text-align: center;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .empty-photos {
+      border: 1px dashed #d8d2e6;
+      border-radius: 18px;
+      padding: 17px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .footer-note {
+      margin: 22px 8px 4px;
+      color: #89859a;
+      font-size: 11px;
+      line-height: 1.45;
+      text-align: center;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 5;
+      right: 20px;
+      bottom: calc(22px + var(--safe-bottom));
+      left: 20px;
+      width: fit-content;
+      max-width: calc(100% - 40px);
+      margin: 0 auto;
+      border-radius: 14px;
+      padding: 12px 16px;
+      background: #29253b;
+      color: #fff;
+      font-size: 14px;
+      box-shadow: 0 10px 28px rgba(30,24,54,.2);
+    }
+
+    dialog {
+      width: min(92vw, 520px);
+      max-height: 90svh;
+      border: 0;
+      border-radius: 22px;
+      padding: 12px;
+      background: #fff;
+      box-shadow: 0 24px 80px rgba(0,0,0,.35);
+    }
+
+    dialog::backdrop { background: rgba(23, 20, 38, .72); }
+    dialog img { display: block; max-width: 100%; max-height: 72svh; margin: auto; border-radius: 14px; object-fit: contain; }
+    .dialog-actions { display: flex; justify-content: flex-end; padding-top: 9px; }
+    .dialog-actions .button { min-height: 44px; }
+
+    .estimate-dialog h2 { margin: 7px 4px 5px; font-size: 20px; }
+    .estimate-status { margin: 0 4px 13px; color: var(--muted); font-size: 14px; line-height: 1.4; }
+    .estimate-preview { display: block; width: 100%; max-height: 43svh; border-radius: 14px; background: #f1eef8; object-fit: contain; }
+    .estimate-preview.marking { touch-action: none; cursor: crosshair; }
+    .estimate-controls { padding-top: 14px; }
+    .estimate-explainer { margin: 0 3px 12px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .mark-tools { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 0 0 11px; }
+    .mark-tools .button { min-height: 46px; padding: 0 11px; font-size: 13px; }
+    .button-mark-active { border-color: #9cc4ff; background: #edf5ff; color: #1558b0; }
+    .manual-hint { margin: 0 3px 12px; border-radius: 12px; padding: 10px 12px; background: #f0f6ff; color: #35577f; font-size: 12px; line-height: 1.4; }
+    .quantity-control { display: grid; grid-template-columns: 56px 1fr 56px; align-items: center; gap: 12px; }
+    .quantity-stepper { width: 56px; height: 56px; border: 0; border-radius: 17px; background: #eeeaff; color: var(--purple-dark); font-size: 28px; font-weight: 700; }
+    .quantity-value { width: 100%; min-width: 0; border: 1px solid #e4def4; border-radius: 15px; padding: 6px; background: #fff; color: var(--purple-dark); font-size: 34px; font-weight: 800; text-align: center; font-variant-numeric: tabular-nums; }
+    .estimate-actions { display: grid; grid-template-columns: 1fr 1.35fr; gap: 9px; margin-top: 13px; }
+    .estimate-actions .button { min-height: 48px; padding: 0 10px; font-size: 13px; }
+
+    @media (min-width: 600px) {
+      .screen { padding-top: 32px; padding-bottom: 32px; }
+      .counter-card { padding: 31px 30px 27px; }
+      .actions { grid-template-columns: 1fr 1fr; }
+      .actions .button-count { grid-column: 1 / -1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <main id="welcomeScreen" class="screen welcome">
+    <section class="welcome-card" aria-labelledby="welcomeTitle">
+      <span class="heart" aria-hidden="true">💜</span>
+      <h1 id="welcomeTitle">love u oksi</h1>
+      <p>Маленька гра для тебе.</p>
+      <a id="enterButton" class="button button-primary" href="#appScreen">Привіт <span aria-hidden="true">→</span></a>
+    </section>
+  </main>
+
+  <main id="appScreen" class="screen">
+    <div class="app-shell">
+      <header class="topline">
+        <div class="brand-mark" aria-hidden="true">🕊️</div>
+        <div>
+          <h1>Лічильник птахів</h1>
+          <p>Маленькі зустрічі, які хочеться зберегти</p>
+        </div>
+      </header>
+
+      <section class="counter-card" aria-labelledby="countLabel">
+        <p id="countLabel" class="count-label">Птахів пораховано</p>
+        <div id="count" class="count" aria-live="polite">0</div>
+
+        <div class="goal-row">
+          <span id="goalLabel">До першої цілі</span>
+          <span id="goalText">0 / 100</span>
+        </div>
+        <div class="progress-track" role="progressbar" aria-label="Прогрес до наступної цілі" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+
+        <div class="actions">
+          <button id="countButton" class="button button-count" type="button">＋ Зарахувати птаха</button>
+          <label class="button button-photo" for="photoInput">📷 Сфотографувати й порахувати птахів</label>
+          <input id="photoInput" class="photo-input" type="file" accept="image/*" capture="environment" aria-label="Зробити або вибрати фото птахів">
+          <button id="undoButton" class="button button-secondary" type="button" disabled>↶ Скасувати останній</button>
+        </div>
+        <p class="helper">Модель дає приблизну оцінку. На фото можна дотиками позначити пропущених птахів і уточнити число.</p>
+      </section>
+
+      <section id="photosSection" hidden aria-labelledby="photosTitle">
+        <div class="section-heading">
+          <h2 id="photosTitle">Фото птахів</h2>
+          <span id="photoCount"></span>
+        </div>
+        <div id="photoGrid" class="photo-grid"></div>
+      </section>
+
+      <p class="footer-note">Рахунок і фото зберігаються на цьому iPhone. Вони не надсилаються в інтернет і не синхронізуються з іншими пристроями.</p>
+    </div>
+  </main>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+  <dialog id="photoDialog" aria-label="Фото птаха">
+    <img id="dialogImage" alt="Збережене фото птаха">
+    <div class="dialog-actions"><button id="closePhoto" class="button button-secondary" type="button">Закрити</button></div>
+  </dialog>
+  <dialog id="estimateDialog" class="estimate-dialog" aria-labelledby="estimateTitle">
+    <h2 id="estimateTitle">Орієнтовний підрахунок</h2>
+    <p id="estimateStatus" class="estimate-status">Готую фото…</p>
+    <canvas id="estimateCanvas" class="estimate-preview" hidden></canvas>
+    <div id="estimateControls" class="estimate-controls" hidden>
+      <p class="estimate-explainer">Модель шукає птахів, але може пропустити тих, що перекриваються. Познач пропущених дотиком.</p>
+      <div class="mark-tools">
+        <button id="toggleMarking" class="button button-secondary" type="button">＋ Позначити пропущених</button>
+        <button id="undoMark" class="button button-secondary" type="button" disabled>↶ Скасувати мітку</button>
+      </div>
+      <p id="manualHint" class="manual-hint" hidden></p>
+      <div class="quantity-control" aria-label="Змінити кількість птахів">
+        <button id="decreaseQuantity" class="quantity-stepper" type="button" aria-label="Зменшити кількість">−</button>
+        <input id="quantityValue" class="quantity-value" type="number" inputmode="numeric" min="0" max="10000" step="1" value="0" aria-label="Кількість птахів для зарахування">
+        <button id="increaseQuantity" class="quantity-stepper" type="button" aria-label="Збільшити кількість">+</button>
+      </div>
+      <div class="estimate-actions">
+        <button id="cancelEstimate" class="button button-secondary" type="button">Скасувати</button>
+        <button id="saveEstimate" class="button button-count" type="button">Зберегти фото й число</button>
+      </div>
+    </div>
+  </dialog>
+
+  <script>
+    const DB_NAME = "love-u-oksi-pigeon-counter";
+    const STORE_NAME = "observations";
+    const GOALS = [100, 300, 1000, 10000];
+    const TFJS_URL = "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js";
+    const COCO_SSD_URL = "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js";
+    let database = null;
+    let observations = [];
+    let objectUrls = [];
+    let toastTimer = null;
+    let birdModelPromise = null;
+    let pendingPhoto = null;
+    let pendingDetections = [];
+    let pendingMarks = [];
+    let estimateSource = null;
+    let manualMarkMode = false;
+    let estimatedQuantity = 0;
+
+    const welcomeScreen = document.getElementById("welcomeScreen");
+    const appScreen = document.getElementById("appScreen");
+    const countNode = document.getElementById("count");
+    const goalLabel = document.getElementById("goalLabel");
+    const goalText = document.getElementById("goalText");
+    const progressTrack = document.querySelector(".progress-track");
+    const progressFill = document.getElementById("progressFill");
+    const undoButton = document.getElementById("undoButton");
+    const photoInput = document.getElementById("photoInput");
+    const photoSection = document.getElementById("photosSection");
+    const photoGrid = document.getElementById("photoGrid");
+    const photoCount = document.getElementById("photoCount");
+    const toast = document.getElementById("toast");
+    const photoDialog = document.getElementById("photoDialog");
+    const dialogImage = document.getElementById("dialogImage");
+    const estimateDialog = document.getElementById("estimateDialog");
+    const estimateStatus = document.getElementById("estimateStatus");
+    const estimateCanvas = document.getElementById("estimateCanvas");
+    const estimateControls = document.getElementById("estimateControls");
+    const quantityValue = document.getElementById("quantityValue");
+    const toggleMarkingButton = document.getElementById("toggleMarking");
+    const undoMarkButton = document.getElementById("undoMark");
+    const manualHint = document.getElementById("manualHint");
+
+    function totalPigeons() {
+      return observations.reduce((total, item) => total + (Number.isFinite(item.quantity) ? item.quantity : 1), 0);
+    }
+
+    function formatNumber(number) {
+      return new Intl.NumberFormat("uk-UA").format(number);
+    }
+
+    function openDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onupgradeneeded = () => {
+          const db = request.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: "id" });
+          }
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error("Не вдалося відкрити сховище."));
+      });
+    }
+
+    function readObservations() {
+      return new Promise((resolve, reject) => {
+        const transaction = database.transaction(STORE_NAME, "readonly");
+        const request = transaction.objectStore(STORE_NAME).getAll();
+        request.onsuccess = () => resolve(request.result.sort((a, b) => a.createdAt - b.createdAt));
+        request.onerror = () => reject(request.error || new Error("Не вдалося прочитати рахунок."));
+      });
+    }
+
+    function writeObservation(observation) {
+      return new Promise((resolve, reject) => {
+        const transaction = database.transaction(STORE_NAME, "readwrite");
+        transaction.objectStore(STORE_NAME).add(observation);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error || new Error("Не вдалося зберегти запис."));
+        transaction.onabort = () => reject(transaction.error || new Error("Збереження перервано."));
+      });
+    }
+
+    function deleteObservation(id) {
+      return new Promise((resolve, reject) => {
+        const transaction = database.transaction(STORE_NAME, "readwrite");
+        transaction.objectStore(STORE_NAME).delete(id);
+        transaction.oncomplete = () => resolve();
+        transaction.onerror = () => reject(transaction.error || new Error("Не вдалося скасувати запис."));
+      });
+    }
+
+    function showToast(message) {
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 2600);
+    }
+
+    function formatTime(timestamp) {
+      return new Intl.DateTimeFormat("uk-UA", { hour: "2-digit", minute: "2-digit" }).format(timestamp);
+    }
+
+    function render() {
+      const count = totalPigeons();
+      const nextGoal = GOALS.find(goal => count < goal);
+      countNode.textContent = formatNumber(count);
+      if (nextGoal) {
+        goalLabel.textContent = count === 0 ? "До першої цілі" : `Наступна ціль — ${formatNumber(nextGoal)}`;
+        goalText.textContent = `${formatNumber(count)} / ${formatNumber(nextGoal)}`;
+        const progress = Math.min(100, (count / nextGoal) * 100);
+        progressFill.style.width = `${progress}%`;
+        progressTrack.setAttribute("aria-valuenow", String(Math.round(progress)));
+      } else {
+        goalLabel.textContent = "Усі цілі досягнуті 💜";
+        goalText.textContent = `${formatNumber(GOALS[GOALS.length - 1])} / ${formatNumber(GOALS[GOALS.length - 1])}`;
+        progressFill.style.width = "100%";
+        progressTrack.setAttribute("aria-valuenow", "100");
+      }
+      undoButton.disabled = observations.length === 0;
+
+      objectUrls.forEach(url => URL.revokeObjectURL(url));
+      objectUrls = [];
+      const photoObservations = observations.filter(item => item.photo).slice(-6).reverse();
+      photoSection.hidden = photoObservations.length === 0;
+      photoCount.textContent = photoObservations.length ? `${observations.filter(item => item.photo).length} збережено` : "";
+      photoGrid.replaceChildren();
+
+      for (const item of photoObservations) {
+        const url = URL.createObjectURL(item.photo);
+        objectUrls.push(url);
+        const tile = document.createElement("button");
+        tile.type = "button";
+        tile.className = "photo-tile";
+        tile.setAttribute("aria-label", `Відкрити фото від ${formatTime(item.createdAt)}`);
+        const image = document.createElement("img");
+        image.src = url;
+        image.alt = "Фото птаха";
+        const time = document.createElement("span");
+        time.className = "photo-time";
+        const quantity = Number.isFinite(item.quantity) ? item.quantity : 1;
+        time.textContent = `${formatTime(item.createdAt)} · ${formatNumber(quantity)}`;
+        tile.append(image, time);
+        tile.addEventListener("click", () => openPhoto(item.photo));
+        photoGrid.append(tile);
+      }
+    }
+
+    async function refresh() {
+      observations = await readObservations();
+      render();
+    }
+
+    async function addObservation(photo = null, quantity = 1, marks = []) {
+      if (!database) {
+        showToast("Сховище ще запускається. Спробуй за мить.");
+        return;
+      }
+      const previousCount = totalPigeons();
+      const savedQuantity = Math.max(0, Math.round(Number(quantity) || 0));
+      const id = window.crypto && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      try {
+        await writeObservation({ id, createdAt: Date.now(), photo, quantity: savedQuantity, marks });
+        await refresh();
+        showToast(photo ? `Фото збережено; зараховано ${formatNumber(savedQuantity)} птахів 💜` : "Птаха зараховано 💜");
+        const newlyReached = GOALS.filter(goal => previousCount < goal && previousCount + savedQuantity >= goal);
+        if (newlyReached.length) {
+          const goal = newlyReached[newlyReached.length - 1];
+          setTimeout(() => window.alert(`Ура! Досягнуто цілі — ${formatNumber(goal)} птахів 💜`), 120);
+        }
+      } catch (error) {
+        console.error(error);
+        showToast("Не вдалося зберегти запис. Перевір вільне місце на пристрої.");
+      }
+    }
+
+    async function compressPhoto(file) {
+      return new Promise(resolve => {
+        const sourceUrl = URL.createObjectURL(file);
+        const image = new Image();
+        image.onload = () => {
+          const scale = Math.min(1, 1400 / Math.max(image.naturalWidth, image.naturalHeight));
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+          canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+          const context = canvas.getContext("2d");
+          context.drawImage(image, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob(blob => {
+            URL.revokeObjectURL(sourceUrl);
+            resolve(blob || file);
+          }, "image/jpeg", 0.82);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(sourceUrl);
+          resolve(file);
+        };
+        image.src = sourceUrl;
+      });
+    }
+
+    function loadExternalScript(url, globalName) {
+      if (window[globalName]) return Promise.resolve();
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = url;
+        script.async = true;
+        script.onload = () => window[globalName] ? resolve() : reject(new Error(`${globalName} did not load`));
+        script.onerror = () => reject(new Error(`Could not load ${url}`));
+        document.head.append(script);
+      });
+    }
+
+    function loadBirdModel() {
+      if (!birdModelPromise) {
+        birdModelPromise = (async () => {
+          await loadExternalScript(TFJS_URL, "tf");
+          await loadExternalScript(COCO_SSD_URL, "cocoSsd");
+          await tf.ready();
+          return cocoSsd.load({ base: "mobilenet_v2" });
+        })().catch(error => {
+          birdModelPromise = null;
+          throw error;
+        });
+      }
+      return birdModelPromise;
+    }
+
+    function imageFromBlob(blob) {
+      return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(blob);
+        const image = new Image();
+        image.onload = () => {
+          URL.revokeObjectURL(url);
+          resolve(image);
+        };
+        image.onerror = () => {
+          URL.revokeObjectURL(url);
+          reject(new Error("Не вдалося відкрити фото."));
+        };
+        image.src = url;
+      });
+    }
+
+    function boxIoU(a, b) {
+      const left = Math.max(a.x, b.x);
+      const top = Math.max(a.y, b.y);
+      const right = Math.min(a.x + a.width, b.x + b.width);
+      const bottom = Math.min(a.y + a.height, b.y + b.height);
+      const intersection = Math.max(0, right - left) * Math.max(0, bottom - top);
+      const union = a.width * a.height + b.width * b.height - intersection;
+      return union > 0 ? intersection / union : 0;
+    }
+
+    async function estimateBirds(photo) {
+      const model = await loadBirdModel();
+      const image = await imageFromBlob(photo);
+      const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+      const source = document.createElement("canvas");
+      source.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      source.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      source.getContext("2d").drawImage(image, 0, 0, source.width, source.height);
+
+      // Overlapping crops help the general-purpose model see smaller birds in a flock.
+      const tileWidth = Math.max(1, Math.ceil(source.width * 0.68));
+      const tileHeight = Math.max(1, Math.ceil(source.height * 0.68));
+      const xs = [...new Set([0, Math.max(0, source.width - tileWidth)])];
+      const ys = [...new Set([0, Math.max(0, source.height - tileHeight)])];
+      const candidates = [];
+
+      for (const y of ys) {
+        for (const x of xs) {
+          const width = Math.min(tileWidth, source.width - x);
+          const height = Math.min(tileHeight, source.height - y);
+          const tile = document.createElement("canvas");
+          tile.width = width;
+          tile.height = height;
+          tile.getContext("2d").drawImage(source, x, y, width, height, 0, 0, width, height);
+          const predictions = await model.detect(tile, 100, 0.22);
+          for (const prediction of predictions) {
+            if (prediction.class !== "bird" || prediction.score < 0.24) continue;
+            const [boxX, boxY, boxWidth, boxHeight] = prediction.bbox;
+            candidates.push({
+              x: x + boxX,
+              y: y + boxY,
+              width: boxWidth,
+              height: boxHeight,
+              score: prediction.score
+            });
+          }
+          await new Promise(resolve => setTimeout(resolve, 0));
+        }
+      }
+
+      // Remove duplicate detections caused by overlapping crops.
+      const detections = [];
+      candidates.sort((a, b) => b.score - a.score);
+      for (const candidate of candidates) {
+        if (!detections.some(existing => boxIoU(existing, candidate) > 0.45)) {
+          detections.push(candidate);
+        }
+      }
+      return { source, detections };
+    }
+
+    function showEstimateBoxes(source, detections, marks = []) {
+      estimateSource = source;
+      estimateCanvas.width = source.width;
+      estimateCanvas.height = source.height;
+      const context = estimateCanvas.getContext("2d");
+      context.drawImage(source, 0, 0);
+      context.lineWidth = Math.max(2, source.width / 500);
+      context.font = `bold ${Math.max(16, source.width / 38)}px -apple-system, sans-serif`;
+      context.textAlign = "start";
+      context.textBaseline = "alphabetic";
+      detections.forEach((box, index) => {
+        context.strokeStyle = "#ef477a";
+        context.fillStyle = "rgba(239, 71, 122, .88)";
+        context.strokeRect(box.x, box.y, box.width, box.height);
+        const label = String(index + 1);
+        const labelWidth = context.measureText(label).width + 10;
+        const labelHeight = Math.max(22, source.width / 32);
+        const labelY = Math.max(0, box.y - labelHeight);
+        context.fillRect(box.x, labelY, labelWidth, labelHeight);
+        context.fillStyle = "#ffffff";
+        context.fillText(label, box.x + 5, labelY + labelHeight * 0.75);
+      });
+      marks.forEach((point, index) => {
+        const markerSize = Math.max(54, source.width * 0.055);
+        const x = point.x * source.width;
+        const y = point.y * source.height;
+        const left = Math.max(0, Math.min(source.width - markerSize, x - markerSize / 2));
+        const top = Math.max(0, Math.min(source.height - markerSize, y - markerSize / 2));
+        const label = String(detections.length + index + 1);
+        context.fillStyle = "rgba(21, 102, 220, .92)";
+        context.strokeStyle = "#ffffff";
+        context.lineWidth = Math.max(3, source.width / 320);
+        context.fillRect(left, top, markerSize, markerSize);
+        context.strokeRect(left, top, markerSize, markerSize);
+        context.fillStyle = "#ffffff";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.font = `bold ${Math.max(20, markerSize * 0.58)}px -apple-system, sans-serif`;
+        context.fillText(label, left + markerSize / 2, top + markerSize / 2);
+      });
+      estimateCanvas.hidden = false;
+    }
+
+    function updateMarkControls() {
+      estimateCanvas.classList.toggle("marking", manualMarkMode);
+      toggleMarkingButton.classList.toggle("button-mark-active", manualMarkMode);
+      toggleMarkingButton.textContent = manualMarkMode ? "Готово з мітками" : "＋ Позначити пропущених";
+      undoMarkButton.disabled = pendingMarks.length === 0;
+      manualHint.hidden = !manualMarkMode;
+      if (manualMarkMode) {
+        manualHint.textContent = pendingDetections.length
+          ? "Торкнися птахів, яких немає в червоних рамках. Синій квадратик додає одного птаха. Не позначай птаха двічі."
+          : "Модель не знайшла птахів. Торкнися кожного птаха на фото — синій квадратик додасть його до рахунку.";
+      }
+    }
+
+    function updateEstimateStatus() {
+      const modelCount = pendingDetections.length;
+      const manualCount = pendingMarks.length;
+      if (modelCount || manualCount) {
+        estimateStatus.textContent = `Модель знайшла ${formatNumber(modelCount)}, вручну позначено ${formatNumber(manualCount)}. До рахунку: ${formatNumber(estimatedQuantity)}.`;
+      } else if (estimatedQuantity > 0) {
+        estimateStatus.textContent = `Вручну введено ${formatNumber(estimatedQuantity)} птахів.`;
+      } else {
+        estimateStatus.textContent = "Модель не знайшла птахів. Познач їх дотиками або введи кількість вручну.";
+      }
+      if (manualMarkMode) {
+        estimateStatus.textContent += " Торкайся лише пропущених птахів.";
+      }
+    }
+
+    function markBird(event) {
+      if (!manualMarkMode || !estimateCanvas.width || (event.button !== undefined && event.button !== 0)) return;
+      event.preventDefault();
+      const rect = estimateCanvas.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+      if (estimatedQuantity >= 10000) {
+        showToast("Досягнуто максимуму для одного підрахунку.");
+        return;
+      }
+      pendingMarks.push({ x, y });
+      estimatedQuantity += 1;
+      quantityValue.value = String(estimatedQuantity);
+      showEstimateBoxes(estimateSource, pendingDetections, pendingMarks);
+      updateMarkControls();
+      updateEstimateStatus();
+    }
+
+    function undoLastMark() {
+      if (!pendingMarks.length) return;
+      pendingMarks.pop();
+      estimatedQuantity = Math.max(0, estimatedQuantity - 1);
+      quantityValue.value = String(estimatedQuantity);
+      showEstimateBoxes(estimateSource, pendingDetections, pendingMarks);
+      updateMarkControls();
+      updateEstimateStatus();
+    }
+
+    async function showPhotoPreview(photo) {
+      const image = await imageFromBlob(photo);
+      const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
+      const source = document.createElement("canvas");
+      source.width = Math.max(1, Math.round(image.naturalWidth * scale));
+      source.height = Math.max(1, Math.round(image.naturalHeight * scale));
+      source.getContext("2d").drawImage(image, 0, 0, source.width, source.height);
+      estimateSource = source;
+      showEstimateBoxes(source, []);
+    }
+
+    async function analyzePhoto(file) {
+      estimateControls.hidden = true;
+      estimateCanvas.hidden = true;
+      pendingDetections = [];
+      pendingMarks = [];
+      estimateSource = null;
+      manualMarkMode = false;
+      updateMarkControls();
+      estimateStatus.textContent = "Готую фото та завантажую модель. Для першого підрахунку потрібен інтернет…";
+      estimateDialog.showModal();
+      try {
+        pendingPhoto = await compressPhoto(file);
+        estimateStatus.textContent = "Шукаю птахів на фото…";
+        const result = await estimateBirds(pendingPhoto);
+        pendingDetections = result.detections;
+        estimatedQuantity = pendingDetections.length;
+        estimateSource = result.source;
+        showEstimateBoxes(result.source, pendingDetections);
+        quantityValue.value = String(estimatedQuantity);
+        updateMarkControls();
+        updateEstimateStatus();
+        estimateControls.hidden = false;
+      } catch (error) {
+        console.error(error);
+        pendingDetections = [];
+        pendingMarks = [];
+        estimatedQuantity = 0;
+        quantityValue.value = "0";
+        try {
+          if (pendingPhoto) await showPhotoPreview(pendingPhoto);
+        } catch (previewError) {
+          console.warn("Photo preview unavailable:", previewError);
+          estimateCanvas.hidden = true;
+        }
+        updateMarkControls();
+        updateEstimateStatus();
+        estimateControls.hidden = false;
+      }
+    }
+
+    function updateEstimatedQuantity(value) {
+      const parsed = Number.parseInt(value, 10);
+      estimatedQuantity = Number.isFinite(parsed) ? Math.max(0, Math.min(10000, parsed)) : 0;
+      quantityValue.value = String(estimatedQuantity);
+      updateEstimateStatus();
+    }
+
+    async function undoLast() {
+      if (!observations.length) return;
+      try {
+        await deleteObservation(observations[observations.length - 1].id);
+        await refresh();
+        showToast("Останній запис скасовано.");
+      } catch (error) {
+        console.error(error);
+        showToast("Не вдалося скасувати запис.");
+      }
+    }
+
+    function openPhoto(blob) {
+      const url = URL.createObjectURL(blob);
+      dialogImage.src = url;
+      photoDialog.showModal();
+      photoDialog.addEventListener("close", () => {
+        URL.revokeObjectURL(url);
+        dialogImage.removeAttribute("src");
+      }, { once: true });
+    }
+
+    document.getElementById("enterButton").addEventListener("click", () => {
+      welcomeScreen.hidden = true;
+      appScreen.hidden = false;
+      window.scrollTo(0, 0);
+    });
+
+    document.getElementById("countButton").addEventListener("click", () => addObservation(null, 1));
+    document.getElementById("undoButton").addEventListener("click", undoLast);
+    document.getElementById("closePhoto").addEventListener("click", () => photoDialog.close());
+    toggleMarkingButton.addEventListener("click", () => {
+      manualMarkMode = !manualMarkMode;
+      updateMarkControls();
+      updateEstimateStatus();
+    });
+    undoMarkButton.addEventListener("click", undoLastMark);
+    estimateCanvas.addEventListener("pointerdown", markBird);
+    document.getElementById("decreaseQuantity").addEventListener("click", () => updateEstimatedQuantity(estimatedQuantity - 1));
+    document.getElementById("increaseQuantity").addEventListener("click", () => updateEstimatedQuantity(estimatedQuantity + 1));
+    quantityValue.addEventListener("input", () => updateEstimatedQuantity(quantityValue.value));
+    document.getElementById("cancelEstimate").addEventListener("click", () => estimateDialog.close());
+    estimateDialog.addEventListener("close", () => {
+      pendingPhoto = null;
+      pendingDetections = [];
+      pendingMarks = [];
+      estimateSource = null;
+      manualMarkMode = false;
+      updateMarkControls();
+      photoInput.value = "";
+    });
+    document.getElementById("saveEstimate").addEventListener("click", async () => {
+      if (!pendingPhoto) return;
+      const photo = pendingPhoto;
+      const quantity = estimatedQuantity;
+      const marks = pendingMarks.map(point => ({ ...point }));
+      estimateDialog.close();
+      await addObservation(photo, quantity, marks);
+    });
+
+    photoInput.addEventListener("change", async event => {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        showToast("Вибери фото, будь ласка.");
+        photoInput.value = "";
+        return;
+      }
+      photoInput.value = "";
+      await analyzePhoto(file);
+    });
+
+    async function start() {
+      try {
+        database = await openDatabase();
+        await refresh();
+      } catch (error) {
+        console.error(error);
+        showToast("Не вдалося відкрити сховище на цьому пристрої.");
+      }
+      if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+        navigator.serviceWorker.register("./sw.js").catch(error => console.warn("Offline cache unavailable:", error));
+      }
+    }
+
+    start();
+  </script>
+</body>
+</html>
